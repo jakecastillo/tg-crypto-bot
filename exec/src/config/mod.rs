@@ -9,6 +9,7 @@ pub struct Config {
     pub http_addr: String,
     pub metrics_addr: String,
     pub dry_run: bool,
+    pub ta_service_url: String,
 }
 
 impl Default for Config {
@@ -21,6 +22,7 @@ impl Default for Config {
             http_addr: "0.0.0.0:8081".to_string(),
             metrics_addr: "0.0.0.0:9101".to_string(),
             dry_run: true,
+            ta_service_url: "http://ta-service:9100".to_string(),
         }
     }
 }

@@ -6,4 +6,5 @@ use (
     ./connectors/cex
     ./risk
     ./data
+    ./ta-service
 )

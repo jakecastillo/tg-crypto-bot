@@ -34,10 +34,12 @@ services:
     environment:
       TG_TRADER_API_REDIS_URL: redis:6379
       TG_TRADER_API_API_TOKEN: ${TG_SHARED_TOKEN:-local-token}
+      TG_TRADER_API_TA_SERVICE_URL: http://ta-service:9100
     ports:
       - "8080:8080"
     depends_on:
       - redis
+      - ta-service
   exec:
     build:
       context: ..
@@ -45,6 +47,18 @@ services:
     environment:
       TG_TRADER_EXEC__REDIS_URL: redis://redis:6379
       TG_TRADER_EXEC__DRY_RUN: "true"
+      TG_TRADER_EXEC__TA_SERVICE_URL: http://ta-service:9100
     depends_on:
       - redis
       - anvil
+      - ta-service
+  ta-service:
+    build:
+      context: ..
+      dockerfile: ops/Dockerfile.ta
+    environment:
+      TA_SERVICE_POSTGRES_URL: postgres://trader:password@postgres:5432/trader?sslmode=disable
+      TA_SERVICE_BINANCE_SYMBOLS: ETHUSDT,BTCUSDT
+      TA_SERVICE_UNISWAP_PAIRS: 0x0000000000000000000000000000000000000000
+    depends_on:
+      - postgres

@@ -1,5 +1,7 @@
 mod config;
+mod filters;
 mod job;
+mod ta_client;
 
 use anyhow::Context;
 use hyper::service::{make_service_fn, service_fn};
@@ -7,6 +9,7 @@ use hyper::{Body, Response, Server};
 use job::Intent;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use std::net::SocketAddr;
+use ta_client::TAClient;
 use tokio::time::{sleep, Duration};
 use tracing::{error, info};
 
@@ -52,7 +55,9 @@ async fn main() -> anyhow::Result<()> {
     });
 
     let conn = client.get_async_connection().await?;
-    worker_loop(conn, cfg).await;
+    let ta_client = TAClient::new(cfg.ta_service_url.clone());
+    let registry = filters::Registry::default();
+    worker_loop(conn, cfg, ta_client, registry).await;
     Ok(())
 }
 
@@ -72,7 +77,12 @@ async fn ensure_stream_group(
     Ok(())
 }
 
-async fn worker_loop(mut conn: redis::aio::Connection, cfg: config::Config) {
+async fn worker_loop(
+    mut conn: redis::aio::Connection,
+    cfg: config::Config,
+    ta_client: TAClient,
+    registry: filters::Registry,
+) {
     loop {
         let resp: redis::Value = match redis::cmd("XREADGROUP")
             .arg("GROUP")
@@ -101,7 +111,7 @@ async fn worker_loop(mut conn: redis::aio::Connection, cfg: config::Config) {
         };
 
         for (id, intent) in entries {
-            if let Err(err) = handle_intent(&cfg, &intent).await {
+            if let Err(err) = handle_intent(&cfg, &intent, &ta_client, &registry).await {
                 error!(%err, "failed to handle intent" );
             }
             if let Err(err) = redis::cmd("XACK")
@@ -160,17 +170,94 @@ fn parse_stream(value: redis::Value) -> Option<Vec<(String, Intent)>> {
     }
 }
 
-async fn handle_intent(cfg: &config::Config, intent: &Intent) -> anyhow::Result<()> {
+async fn handle_intent(
+    cfg: &config::Config,
+    intent: &Intent,
+    ta_client: &TAClient,
+    registry: &filters::Registry,
+) -> anyhow::Result<()> {
     let age = intent.age()?;
     info!(intent_id = %intent.id, %age, "processing intent");
-    let trade = intent.parse_trade()?;
+    if let Some((action, payload)) = intent.parse_action() {
+        handle_action(intent, &action, payload, registry).await
+    } else {
+        let trade = intent.parse_trade()?;
+        handle_trade(cfg, intent, &trade, ta_client, registry).await
+    }
+}
+
+async fn handle_trade(
+    cfg: &config::Config,
+    intent: &Intent,
+    trade: &job::TradeRequest,
+    ta_client: &TAClient,
+    registry: &filters::Registry,
+) -> anyhow::Result<()> {
+    if !trade.force() {
+        if let Some(filter) = registry.get(&intent.principal).await {
+            let allowed = filter.evaluate(ta_client, &trade.token).await?;
+            if !allowed {
+                info!(intent_id = %intent.id, expr = %filter.expression, "trade blocked by auto-trade filter");
+                return Ok(());
+            }
+        }
+    }
     if cfg.dry_run {
         info!(?trade, "dry run mode - skipping broadcast");
         return Ok(());
     }
-    // TODO: integrate connectors and signer for real trading
     info!(?trade, "executed trade (stub)");
     Ok(())
+}
+
+async fn handle_action(
+    intent: &Intent,
+    action: &str,
+    payload: serde_json::Value,
+    registry: &filters::Registry,
+) -> anyhow::Result<()> {
+    match action {
+        "set-autotrade-filter" => {
+            let enabled = payload
+                .get("enabled")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(true);
+            if !enabled {
+                registry.clear(&intent.principal).await;
+                info!(principal = %intent.principal, "auto-trade filter cleared");
+                return Ok(());
+            }
+            let expression = payload
+                .get("expression")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let interval = payload
+                .get("interval")
+                .and_then(|v| v.as_str())
+                .unwrap_or("1m")
+                .to_string();
+            if expression.is_empty() {
+                registry.clear(&intent.principal).await;
+                return Ok(());
+            }
+            registry
+                .set(
+                    intent.principal.clone(),
+                    filters::AutoTradeFilter {
+                        expression: expression.clone(),
+                        interval,
+                    },
+                )
+                .await;
+            info!(principal = %intent.principal, expr = %expression, "auto-trade filter set");
+            Ok(())
+        }
+        _ => {
+            info!(principal = %intent.principal, action, "action received");
+            Ok(())
+        }
+    }
 }
 
 async fn serve_health(addr: String) {

@@ -5,3 +5,4 @@ consumer: "exec-1"
 http_addr: "0.0.0.0:8081"
 metrics_addr: "0.0.0.0:9101"
 dry_run: true
+ta_service_url: "http://ta-service:9100"

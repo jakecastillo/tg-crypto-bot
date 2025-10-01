@@ -1,0 +1,19 @@
+FROM rust:1.75 as builder-rust
+WORKDIR /app
+COPY ta-service/rustlib ./rustlib
+RUN cargo build --release --manifest-path rustlib/Cargo.toml
+
+FROM golang:1.20 as builder-go
+WORKDIR /app
+COPY go.work go.work.sum*? ./
+COPY ta-service ./ta-service
+COPY --from=builder-rust /app/rustlib/target/release/libta_engine.so /app/ta-service/rustlib/target/release/
+RUN cd ta-service && go build -o /ta-service ./cmd/main.go
+
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY --from=builder-go /ta-service /usr/local/bin/ta-service
+COPY --from=builder-rust /app/rustlib/target/release/libta_engine.so /usr/local/lib/libta_engine.so
+ENV LD_LIBRARY_PATH=/usr/local/lib
+EXPOSE 9100
+ENTRYPOINT ["/usr/local/bin/ta-service"]
