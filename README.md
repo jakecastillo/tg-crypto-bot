@@ -3,14 +3,15 @@
 A production-ready monorepo for a latency-optimized Telegram crypto trading bot. The stack separates user interaction, API validation, and execution into hardened services with 12-factor configuration and observability baked in.
 
 ## Features
-- Telegram bot (Go) with one-tap buy/sell, size presets, slippage control, and markdown trade summaries
+- Telegram bot (Go) with one-tap buy/sell, size presets, slippage control, TA lookups (`/rsi`, `/macd`, `/signals`), auto-trade filters, and markdown trade summaries
 - API gateway (Go) providing REST + WebSocket fan-out, rate limiting, auth, and Redis/NATS job dispatch
-- Execution engine (Rust) with async orchestration, Redis consumer groups, safelisted Uniswap V2/V3 hooks, and MEV/private orderflow placeholders
+- Execution engine (Rust) with async orchestration, Redis consumer groups, safelisted Uniswap V2/V3 hooks, TA-aware auto-trade guards, and MEV/private orderflow placeholders
 - Risk engine (Go) enforcing per-token max notional, slippage caps, cooldowns, and trailing-stop scaffolding
 - Connectors: EVM (Rust/ethers), Solana placeholder (Rust/Jito ready), Binance Spot testnet (Go)
 - Post-trade storage in Postgres/Timescale with repositories for portfolio + PnL tracking
 - Telemetry via Prometheus metrics, structured logs, and OpenTelemetry hooks
-- Docker Compose for local stack including Redis, TimescaleDB, and Anvil devnet
+- Docker Compose for local stack including Redis, TimescaleDB, Anvil devnet, and the TA microservice
+- Technical analysis service (Go + Rust FFI) maintaining Binance/Uniswap candles, computing RSI/MACD/Bollinger/ATR, and exposing REST/WebSocket feeds plus CSV-driven backtesting CLI
 
 ## Quickstart
 1. Copy `.env.example` to `.env` and populate secrets
@@ -27,7 +28,8 @@ A production-ready monorepo for a latency-optimized Telegram crypto trading bot.
    ```bash
    cargo run -p exec
    ```
-5. Connect Telegram bot to your chat and issue `/buy WETH 0.01 0.5%`
+5. Connect Telegram bot to your chat and issue `/buy ETHUSDT 0.01 0.5%`
+6. Explore TA commands such as `/signals ETHUSDT 1m` and enable filters `/autotrade on rsi<30 1m`
 6. Inspect Redis stream `trade-intents` and exec logs for lifecycle; revoke approvals via surfaced link post-trade
 
 ## Testing
@@ -50,6 +52,7 @@ See [`docs/threat-model.md`](docs/threat-model.md) for detailed threat analysis 
 bot/          # Telegram interface (Go)
 api/          # REST/WebSocket API (Go)
 exec/         # Execution orchestrator (Rust)
+ta-service/   # Real-time TA service (Go + Rust indicators + backtesting CLI)
 connectors/   # DEX/CEX connectors (Rust + Go)
 signer/       # Signing abstractions (Rust)
 risk/         # Risk policy engine (Go)

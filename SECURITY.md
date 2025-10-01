@@ -12,6 +12,7 @@ The `main` branch receives security fixes. Release tags should be rebuilt after 
 - Immediately rotate Telegram bot token, API bearer tokens, Redis credentials, and signer keystore passwords
 - Switch exec service to `dry_run=true` to prevent broadcast while diagnosing issues
 - Disable copy-trading feeds and revert to safelisted routers only
+- Pause TA auto-trade filters (`/autotrade off`) and gate TA service API access until signal integrity is confirmed
 - Use Redis intent IDs and Postgres audit tables for forensics
 
 ## Hardening Checklist

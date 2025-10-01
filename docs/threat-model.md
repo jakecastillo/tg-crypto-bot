@@ -20,6 +20,7 @@
 - Signer maintains per-session nonces to prevent replay
 - Redis streams require unique consumer group per instance to avoid duplicate execution
 - Metrics and logs are structured and shipped to detect anomalies
+- TA service enforces safelisted Binance/Uniswap markets, stores short-lived candles, and supports disabling auto-trade filters remotely
 
 ## Residual Risks
 - Telegram account takeover of authorized users
