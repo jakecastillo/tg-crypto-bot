@@ -1,0 +1,15 @@
+FROM rust:1.73 AS builder
+WORKDIR /src
+COPY Cargo.toml Cargo.lock*? ./
+COPY exec/Cargo.toml exec/Cargo.toml
+COPY connectors/evm/Cargo.toml connectors/evm/Cargo.toml
+COPY connectors/solana/Cargo.toml connectors/solana/Cargo.toml
+COPY signer/Cargo.toml signer/Cargo.toml
+RUN cargo fetch
+COPY . .
+RUN cd exec && cargo build --release
+
+FROM debian:12-slim
+WORKDIR /app
+COPY --from=builder /src/exec/target/release/exec /usr/local/bin/tg-exec
+ENTRYPOINT ["/usr/local/bin/tg-exec"]

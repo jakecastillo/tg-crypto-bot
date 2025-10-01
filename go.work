@@ -1,0 +1,9 @@
+go 1.21
+
+use (
+    ./bot
+    ./api
+    ./connectors/cex
+    ./risk
+    ./data
+)

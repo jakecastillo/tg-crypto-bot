@@ -1,0 +1,8 @@
+[workspace]
+members = [
+    "exec",
+    "connectors/evm",
+    "connectors/solana",
+    "signer"
+]
+resolver = "2"
