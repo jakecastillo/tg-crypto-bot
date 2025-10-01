@@ -1,0 +1,10 @@
+FROM golang:1.21-alpine AS builder
+WORKDIR /src
+COPY go.work go.work.sum*? ./
+COPY bot/ ./bot/
+RUN cd bot && go build -o /bin/tg-bot ./cmd
+
+FROM alpine:3.18
+WORKDIR /app
+COPY --from=builder /bin/tg-bot /usr/local/bin/tg-bot
+ENTRYPOINT ["/usr/local/bin/tg-bot"]

@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+      postgres:
+        image: timescale/timescaledb:latest-pg14
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_USER: trader
+          POSTGRES_DB: trader
+        ports:
+          - 5432:5432
+    env:
+      TG_TRADER_API_REDIS_URL: redis:6379
+      TG_TRADER_API_API_TOKEN: test-token
+      TG_TRADER_BOT_TELEGRAM_TOKEN: test
+      TG_TRADER_BOT_API_BASE_URL: http://localhost:8080
+      TG_TRADER_BOT_API_TOKEN: test-token
+      TG_TRADER_EXEC__REDIS_URL: redis://localhost:6379
+      TG_TRADER_EXEC__STREAM: trade-intents
+      TG_TRADER_EXEC__GROUP: exec
+      TG_TRADER_EXEC__DRY_RUN: "true"
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v4
+        with:
+          go-version: "1.21"
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - name: Go fmt
+        run: gofmt -w $(git ls-files '*.go')
+      - name: Go test
+        run: go test ./...
+      - name: Cargo fmt
+        run: cargo fmt -- --check
+      - name: Cargo test
+        run: cargo test --workspace

@@ -1,0 +1,50 @@
+version: "3.9"
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+  postgres:
+    image: timescale/timescaledb:latest-pg14
+    environment:
+      POSTGRES_PASSWORD: password
+      POSTGRES_USER: trader
+      POSTGRES_DB: trader
+    ports:
+      - "5432:5432"
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:latest
+    entrypoint: ["anvil", "--host", "0.0.0.0", "--block-time", "1"]
+    ports:
+      - "8545:8545"
+  bot:
+    build:
+      context: ..
+      dockerfile: ops/Dockerfile.bot
+    environment:
+      TG_TRADER_BOT_TELEGRAM_TOKEN: ${TG_TRADER_BOT_TELEGRAM_TOKEN}
+      TG_TRADER_BOT_API_BASE_URL: http://api:8080
+      TG_TRADER_BOT_API_TOKEN: ${TG_SHARED_TOKEN:-local-token}
+    depends_on:
+      - api
+  api:
+    build:
+      context: ..
+      dockerfile: ops/Dockerfile.api
+    environment:
+      TG_TRADER_API_REDIS_URL: redis:6379
+      TG_TRADER_API_API_TOKEN: ${TG_SHARED_TOKEN:-local-token}
+    ports:
+      - "8080:8080"
+    depends_on:
+      - redis
+  exec:
+    build:
+      context: ..
+      dockerfile: ops/Dockerfile.exec
+    environment:
+      TG_TRADER_EXEC__REDIS_URL: redis://redis:6379
+      TG_TRADER_EXEC__DRY_RUN: "true"
+    depends_on:
+      - redis
+      - anvil

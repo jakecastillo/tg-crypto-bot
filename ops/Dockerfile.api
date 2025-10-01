@@ -1,0 +1,10 @@
+FROM golang:1.21-alpine AS builder
+WORKDIR /src
+COPY go.work go.work.sum*? ./
+COPY api/ ./api/
+RUN cd api && go build -o /bin/api ./cmd
+
+FROM alpine:3.18
+WORKDIR /app
+COPY --from=builder /bin/api /usr/local/bin/tg-api
+ENTRYPOINT ["/usr/local/bin/tg-api"]

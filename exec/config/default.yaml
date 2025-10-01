@@ -1,0 +1,7 @@
+redis_url: "redis://redis:6379"
+stream: "trade-intents"
+group: "exec"
+consumer: "exec-1"
+http_addr: "0.0.0.0:8081"
+metrics_addr: "0.0.0.0:9101"
+dry_run: true
