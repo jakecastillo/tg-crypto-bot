@@ -2,6 +2,7 @@ package candles
 
 import (
 	"context"
+	"strconv"
 	"sync"
 	"time"
 
@@ -9,22 +10,12 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/example/tg-crypto-trader/ta-service/internal/config"
-	"github.com/example/tg-crypto-trader/ta-service/internal/indicators"
+	"github.com/example/tg-crypto-trader/ta-service/internal/model"
 	"github.com/example/tg-crypto-trader/ta-service/internal/storage"
 )
 
 // Candle represents OHLCV data.
-type Candle struct {
-	Exchange string    `json:"exchange"`
-	Pair     string    `json:"pair"`
-	Interval string    `json:"interval"`
-	Open     float64   `json:"open"`
-	High     float64   `json:"high"`
-	Low      float64   `json:"low"`
-	Close    float64   `json:"close"`
-	Volume   float64   `json:"volume"`
-	Start    time.Time `json:"start"`
-}
+type Candle = model.Candle
 
 // Buffer maintains the in-memory candle cache per pair.
 type Buffer struct {
@@ -66,11 +57,17 @@ type Service struct {
 	logger zerolog.Logger
 	store  *storage.Store
 	buffer *Buffer
-	rust   indicators.UniswapBridge
+	rust   UniswapBridge
+}
+
+// UniswapBridge exposes the Uniswap candle stream.
+type UniswapBridge interface {
+	Stream() <-chan Candle
+	Close()
 }
 
 // NewService returns a Service.
-func NewService(cfg config.Config, store *storage.Store, bridge indicators.UniswapBridge, logger zerolog.Logger) *Service {
+func NewService(cfg config.Config, store *storage.Store, bridge UniswapBridge, logger zerolog.Logger) *Service {
 	return &Service{
 		cfg:    cfg,
 		store:  store,
@@ -98,11 +95,11 @@ func (s *Service) runBinance(ctx context.Context) {
 			Exchange: "binance",
 			Pair:     event.Symbol,
 			Interval: event.Kline.Interval,
-			Open:     event.Kline.Open,
-			High:     event.Kline.High,
-			Low:      event.Kline.Low,
-			Close:    event.Kline.Close,
-			Volume:   event.Kline.Volume,
+			Open:     parseFloat(event.Kline.Open),
+			High:     parseFloat(event.Kline.High),
+			Low:      parseFloat(event.Kline.Low),
+			Close:    parseFloat(event.Kline.Close),
+			Volume:   parseFloat(event.Kline.Volume),
 			Start:    time.UnixMilli(event.Kline.StartTime),
 		}
 		s.buffer.Add(candle)
@@ -159,4 +156,12 @@ func (s *Service) runUniswap(ctx context.Context) {
 // Candles returns the latest candles for pair/interval.
 func (s *Service) Candles(exchange, pair, interval string) []Candle {
 	return s.buffer.Get(exchange, pair, interval)
+}
+
+func parseFloat(input string) float64 {
+	f, err := strconv.ParseFloat(input, 64)
+	if err != nil {
+		return 0
+	}
+	return f
 }
