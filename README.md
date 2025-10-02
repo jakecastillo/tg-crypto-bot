@@ -61,6 +61,10 @@ Use `make down` (inside `ops/`) to stop the stack, or rerun `./scripts/bootstrap
 - Risk engine unit tests cover SL/TP, cooldown, and slippage handling.
 - Integration placeholder: extend `scripts/integration.sh` to spin Anvil, deploy Uniswap router, and assert buy/sell success including revoke flows.
 
+## Building
+- Use `./scripts/build-all.sh` to compile every Go module with an offline-friendly proxy fallback. The script iterates through each sub-module (`bot`, `api`, `data`, `risk`, `connectors/cex`, `ta-service`) and runs `go build` with `GOWORK=off`.
+- The Rust workspace (`cargo build --release`) still requires crates.io access; once network access is restored the same script output highlights the command to run.
+
 ## Security Posture
 - Stateless bot, no private keys in Telegram tier
 - API verifies bearer token + allow-listed chat IDs

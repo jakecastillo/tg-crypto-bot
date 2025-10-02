@@ -34,7 +34,7 @@ func main() {
 	}
 	defer store.Close()
 
-	bridge, err := indicators.NewRustBridge(cfg.UniswapPairs, log.With().Str("component", "uniswap-bridge").Logger())
+	bridge, err := candles.NewRustBridge(cfg.UniswapPairs, log.With().Str("component", "uniswap-bridge").Logger())
 	if err != nil {
 		log.Warn().Err(err).Msg("uniswap bridge disabled")
 	}

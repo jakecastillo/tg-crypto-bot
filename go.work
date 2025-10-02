@@ -1,10 +1,10 @@
 go 1.21
 
 use (
-    ./bot
-    ./api
-    ./connectors/cex
-    ./risk
-    ./data
-    ./ta-service
+	./api
+	./bot
+	./connectors/cex
+	./data
+	./risk
+	./ta-service
 )
