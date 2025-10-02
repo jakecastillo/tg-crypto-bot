@@ -12,6 +12,7 @@
 - Build images via `make build` in `ops/`
 - Deploy stack using docker-compose or Kubernetes manifests (todo)
 - Provide `.env` with Telegram token, API token, Redis URL.
+- After first launch run `make migrate` in `ops/` to seed the Postgres schema.
 
 ## Backups
 - Postgres/Timescale retains trade history; run daily dumps via `pg_dump`.

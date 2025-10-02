@@ -14,6 +14,7 @@ http_addr: ":8080"
 metrics_addr: ":9100"
 redis_url: "redis:6379"
 api_token: "${TG_SHARED_TOKEN}"
+allowed_chats: []
 rate_limit_rps: 10
 ta_service_url: "http://ta-service:9100"
 ```
