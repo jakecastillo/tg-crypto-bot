@@ -14,23 +14,46 @@ A production-ready monorepo for a latency-optimized Telegram crypto trading bot.
 - Technical analysis service (Go + Rust FFI) maintaining Binance/Uniswap candles, computing RSI/MACD/Bollinger/ATR, and exposing REST/WebSocket feeds plus CSV-driven backtesting CLI
 
 ## Quickstart
-1. Copy `.env.example` to `.env` and populate secrets
-2. Start local dependencies:
-   ```bash
-   cd ops
-   make up
-   ```
-3. Run migrations (requires psql access):
-   ```bash
-   psql postgresql://trader:password@localhost:5432/trader -f ../data/migrations/0001_init.sql
-   ```
-4. Launch exec in dry-run mode (optional outside Docker):
-   ```bash
-   cargo run -p exec
-   ```
-5. Connect Telegram bot to your chat and issue `/buy ETHUSDT 0.01 0.5%`
-6. Explore TA commands such as `/signals ETHUSDT 1m` and enable filters `/autotrade on rsi<30 1m`
-6. Inspect Redis stream `trade-intents` and exec logs for lifecycle; revoke approvals via surfaced link post-trade
+
+### Prerequisites
+- Docker + Docker Compose
+- GNU Make
+- A Telegram account (to create a bot with [@BotFather](https://t.me/BotFather))
+
+### 1. Configure secrets interactively
+Run the bootstrap helper and follow the prompts for your Telegram token, shared API secret, and allowed chat IDs:
+
+```bash
+./scripts/bootstrap.sh
+```
+
+The script copies `.env.example`, keeps the generated API tokens in sync across services (including `docker-compose`), and stores your chat allowlist.
+
+### 2. Launch the Docker stack
+Bring up Redis, Postgres, TA service, API, exec engine, and the Telegram bot in the background. Leave this terminal open; the
+next commands assume you remain inside `ops/`:
+
+```bash
+cd ops
+make up
+```
+
+### 3. Apply the database schema
+After the containers report healthy status, load the default schema from inside `ops/` (run once):
+
+```bash
+make migrate
+```
+
+### 4. Talk to your Telegram bot
+Search for your bot in Telegram, press **/start**, and try commands such as:
+
+```
+/buy ETHUSDT 0.01 0.5%
+/signals ETHUSDT 1m
+```
+
+Use `make down` (inside `ops/`) to stop the stack, or rerun `./scripts/bootstrap.sh` anytime you need to update secrets.
 
 ## Testing
 - Go services: `go test ./...`
